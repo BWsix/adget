@@ -1,8 +1,8 @@
 # adget
 
-wget-like magnet downloader, powered by your premium all debrid account.
+wget-like magnet downloader, powered by your premium AllDebrid account.
 
-> (folders are not supported .\_.)
+> folders are not supported .\_.
 
 ### requirements
 
