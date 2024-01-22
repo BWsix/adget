@@ -21,7 +21,7 @@ wget-like magnet downloader, powered by your premium AllDebrid account.
 
 ### how adget works
 
-1. upload magnet to add debrid with `/magnet/upload`
+1. upload magnet to AllDebrid with `/magnet/upload`
 2. get magnet status and locked download link with `/magnet/status`
 3. unlock download link with `/link/unlock`
 4. spawn and switch to wget with unlocked download link
