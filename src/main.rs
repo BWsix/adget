@@ -1,6 +1,7 @@
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::os::unix::process::CommandExt;
+use std::process::exit;
 use std::{process, thread, time};
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -43,11 +44,12 @@ struct MagnetUpload {
 #[allow(dead_code)]
 struct Magnet {
     magnet: String,
-    hash: String,
-    name: String,
-    size: u64,
-    ready: bool,
-    id: u64,
+    error: Option<Error>,
+    hash: Option<String>,
+    name: Option<String>,
+    size: Option<u64>,
+    ready: Option<bool>,
+    id: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -166,18 +168,26 @@ fn main() {
         println!("paste your apikey here:");
 
         let mut line = String::new();
-        std::io::stdin().read_line(&mut line).expect("Failed to read line from stdin");
+        std::io::stdin()
+            .read_line(&mut line)
+            .expect("Failed to read line from stdin");
         config.apikey = line.trim().to_string();
         confy::store("adget", None, &config).expect("Failed to save config");
 
-        let config_path = confy::get_configuration_file_path("adget", None).expect("Failed to load config path");
+        let config_path =
+            confy::get_configuration_file_path("adget", None).expect("Failed to load config path");
         println!("apikey saved to {}", config_path.display());
     }
 
     match magnet_upload(&config.apikey, &args.magnet) {
         Res::Error(error) => println!("Error: {}", error.message),
         Res::Data(data) => {
-            let id = data.magnets[0].id;
+            if let Some(error) = &data.magnets[0].error {
+                println!("Error: {}", error.message);
+                exit(1);
+            }
+
+            let id = data.magnets[0].id.expect("Failed to upload magnet");
             loop {
                 match magnet_status(&config.apikey, id) {
                     Res::Error(error) => {
