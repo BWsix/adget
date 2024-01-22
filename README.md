@@ -14,8 +14,9 @@ wget-like magnet downloader, powered by your premium AllDebrid account.
 1. clone and cd into this repo
 2. run: `cargo build --release`
 3. cp `./target/release/adget` to `/usr/local/bin/`
-4. get apikey here: <https://alldebrid.com/apikeys/>
-5. run: `adget <apikey> <magnet>`
+4. generate an apikey here: <https://alldebrid.com/apikeys/>
+5. run: `adget <magnet>` and paste your apikey into the terminal
+6. profit
 
 ### how adget works
 

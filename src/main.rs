@@ -1,11 +1,15 @@
 use clap::Parser;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::os::unix::process::CommandExt;
 use std::{process, thread, time};
 
+#[derive(Default, Debug, Serialize, Deserialize)]
+struct Config {
+    apikey: String,
+}
+
 #[derive(Debug, Parser)]
 struct Cli {
-    apikey: String,
     magnet: String,
 }
 
@@ -154,12 +158,28 @@ fn unlock_link(apikey: &str, link: &str) -> Res<UnlockLink> {
 
 fn main() {
     let args = Cli::parse();
-    match magnet_upload(&args.apikey, &args.magnet) {
+    let mut config: Config = confy::load("adget", None).expect("Failed to load config file");
+
+    if &config.apikey == "" {
+        println!("AllDebrid apikey not found");
+        println!("Please visit https://alldebrid.com/apikeys/ and generate one.");
+        println!("paste your apikey here:");
+
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).expect("Failed to read line from stdin");
+        config.apikey = line.trim().to_string();
+        confy::store("adget", None, &config).expect("Failed to save config");
+
+        let config_path = confy::get_configuration_file_path("adget", None).expect("Failed to load config path");
+        println!("apikey saved to {}", config_path.display());
+    }
+
+    match magnet_upload(&config.apikey, &args.magnet) {
         Res::Error(error) => println!("Error: {}", error.message),
         Res::Data(data) => {
             let id = data.magnets[0].id;
             loop {
-                match magnet_status(&args.apikey, id) {
+                match magnet_status(&config.apikey, id) {
                     Res::Error(error) => {
                         println!("Error: {}", error.message);
                         process::exit(1);
@@ -173,7 +193,7 @@ fn main() {
                                 println!("Folders are not supported right now ._.");
                                 process::exit(1);
                             }
-                            match unlock_link(&args.apikey, &data.magnets.links[0].link) {
+                            match unlock_link(&config.apikey, &data.magnets.links[0].link) {
                                 Res::Error(error) => println!("Error: {}", error.message),
                                 Res::Data(data) => {
                                     process::Command::new("wget").arg(data.link).exec();
