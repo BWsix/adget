@@ -36,6 +36,18 @@ struct Error {
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
+struct UserData {
+    username: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct User {
+    user: UserData,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MagnetUpload {
     magnets: Vec<Magnet>,
 }
@@ -177,6 +189,24 @@ fn main() {
         let config_path =
             confy::get_configuration_file_path("adget", None).expect("Failed to load config path");
         println!("apikey saved to {}", config_path.display());
+    } else {
+        let url = format!(
+            "https://api.alldebrid.com/v4/user?agent=cli&apikey={}",
+            &config.apikey
+        );
+        let res =
+            all_debrid_get::<User>(&url).expect("Unexpected error happend while loading user info");
+        match res {
+            Res::Error(_) => {
+                println!("Invalid AllDebrid apikey found: deleting apikey from config...");
+                config.apikey = "".to_string();
+                confy::store("adget", None, &config).expect("Failed to remove apikey from config");
+                process::exit(1);
+            }
+            Res::Data(data) => {
+                println!("Logged in as {}", data.user.username);
+            }
+        }
     }
 
     match magnet_upload(&config.apikey, &args.magnet) {
