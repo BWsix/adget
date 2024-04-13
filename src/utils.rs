@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::process;
 
-pub const API: &str = "https://api.alldebrid.com/v4";
+const API: &str = "https://api.alldebrid.com/v4";
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -10,14 +10,14 @@ pub struct Config {
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct UserData {
-    username: String,
+pub struct UserData {
+    pub username: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct User {
-    user: UserData,
+pub struct User {
+    pub user: UserData,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,15 +29,93 @@ pub struct Error {
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct Response<T> {
-    status: String,
-    data: Option<T>,
-    error: Option<Error>,
+pub struct Response<T> {
+    pub status: String,
+    pub data: Option<T>,
+    pub error: Option<Error>,
 }
 
 pub enum Res<T> {
     Data(T),
     Error(Error),
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct UnlockLink {
+    pub link: String,
+    pub host: String,
+    pub filename: String,
+    // streaming: Vec<?>,
+    pub paws: bool,
+    pub filesize: u64,
+    pub id: String,
+    pub delayed: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct MagnetUpload {
+    pub magnets: Vec<Magnet>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct Magnet {
+    pub magnet: String,
+    pub error: Option<Error>,
+    pub hash: Option<String>,
+    pub name: Option<String>,
+    pub size: Option<u64>,
+    pub ready: Option<bool>,
+    pub id: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct DetailedMagnet {
+    pub id: u64,
+    pub filename: String,
+    pub size: u64,
+    pub hash: String,
+    pub status: String,
+    pub status_code: u64,
+    pub downloaded: u64,
+    pub uploaded: u64,
+    pub seeders: u64,
+    pub download_speed: u64,
+    pub processing_perc: u64,
+    pub upload_speed: u64,
+    pub upload_date: u64,
+    pub completion_date: u64,
+    pub links: Vec<MagnetLink>,
+    pub r#type: String,
+    pub notified: bool,
+    pub version: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct MagnetStatus {
+    pub magnets: DetailedMagnet,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct MagnetLink {
+    pub filename: String,
+    pub size: u64,
+    pub files: Vec<MagnetFile>,
+    pub link: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct MagnetFile {
+    pub n: String,
+    pub e: Option<Box<Vec<MagnetFile>>>,
+    pub s: Option<u64>,
 }
 
 pub fn load_config() -> Config {
@@ -107,17 +185,16 @@ where
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub struct UnlockLink {
-    pub link: String,
-    pub host: String,
-    pub filename: String,
-    // streaming: Vec<?>,
-    pub paws: bool,
-    pub filesize: u64,
-    pub id: String,
-    pub delayed: Option<String>,
+pub fn magnet_upload(apikey: &str, magnet: &str) -> Res<MagnetUpload> {
+    let url = format!("{API}/magnet/upload?agent=cli&apikey={apikey}&magnets[]={magnet}");
+    return all_debrid_get::<MagnetUpload>(&url)
+        .expect("Unexpected error happend while uploading magnet");
+}
+
+pub fn magnet_status(apikey: &str, id: u64) -> Res<MagnetStatus> {
+    let url = format!("{API}/magnet/status?agent=cli&apikey={apikey}&id={id}");
+    return all_debrid_get::<MagnetStatus>(&url)
+        .expect("Unexpected error happend while retriving magnet status");
 }
 
 pub fn link_unlock(apikey: &str, link: &str) -> Res<UnlockLink> {
@@ -125,4 +202,3 @@ pub fn link_unlock(apikey: &str, link: &str) -> Res<UnlockLink> {
     return all_debrid_get::<UnlockLink>(&url)
         .expect("Unexpected error happend while unlocking link");
 }
-

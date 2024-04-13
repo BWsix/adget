@@ -2,5 +2,4 @@
 
 set -ex
 
-rm /usr/local/bin/adgetd
-rm /usr/local/bin/adgetm
+rm /usr/local/bin/adget
