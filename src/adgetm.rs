@@ -1,14 +1,9 @@
 mod utils;
 use utils::API;
 
-use clap::Parser;
+use clap::{arg, ArgAction, Command};
 use serde::Deserialize;
 use std::{os::unix::process::CommandExt, process, thread, time};
-
-#[derive(Debug, Parser)]
-struct Cli {
-    magnet: String,
-}
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
@@ -88,14 +83,41 @@ fn magnet_status(apikey: &str, id: u64) -> utils::Res<MagnetStatus> {
 }
 
 fn main() {
-    let args = Cli::parse();
-    let config = utils::load_config();
+    let matches = Command::new("adgetm")
+        .about("Magnet downloader")
+        .arg(
+            arg!(<magnet>)
+                .required(true)
+                .help("The magnet to download"),
+        )
+        .arg(
+            arg!(nodl: --"nodl")
+                .short('n')
+                .action(ArgAction::SetTrue)
+                .help("Do not download with wget; only prints out the link"),
+        )
+        .arg(
+            arg!(wget_args: ["wget-args"])
+                .required(false)
+                .num_args(1..)
+                .last(true)
+                .help("Args for wget"),
+        )
+        .get_matches();
 
-    match magnet_upload(&config.apikey, &args.magnet) {
-        utils::Res::Error(error) => println!("Error: {}", error.message),
+    let config = utils::load_config();
+    let nodl = matches.get_flag("nodl");
+    let magnet = matches.get_one::<String>("magnet").expect("required");
+    let wget_args = matches
+        .get_many::<String>("wget_args")
+        .map(|vals| vals.collect::<Vec<_>>())
+        .unwrap_or_default();
+
+    match magnet_upload(&config.apikey, &magnet) {
+        utils::Res::Error(error) => eprintln!("Error: {}", error.message),
         utils::Res::Data(data) => {
             if let Some(error) = &data.magnets[0].error {
-                println!("Error: {}", error.message);
+                eprintln!("Error: {}", error.message);
                 process::exit(1);
             }
 
@@ -103,26 +125,34 @@ fn main() {
             loop {
                 match magnet_status(&config.apikey, id) {
                     utils::Res::Error(error) => {
-                        println!("Error: {}", error.message);
+                        eprintln!("Error: {}", error.message);
                         process::exit(1);
                     }
                     utils::Res::Data(data) => {
                         if data.magnets.status == "Ready" {
-                            println!("Ready.");
+                            eprintln!("Ready.");
                             // TODO: support list of links
                             if data.magnets.links.len() > 1 {
                                 dbg!(&data.magnets.links);
-                                println!("Folders are not supported right now ._.");
+                                eprintln!("Folders are unsupported right now ._.");
                                 process::exit(1);
                             }
                             match utils::link_unlock(&config.apikey, &data.magnets.links[0].link) {
-                                utils::Res::Error(error) => println!("Error: {}", error.message),
+                                utils::Res::Error(error) => eprintln!("Error: {}", error.message),
                                 utils::Res::Data(data) => {
-                                    process::Command::new("wget").arg(data.link).exec();
+                                    if nodl {
+                                        println!("{}", data.link);
+                                        process::exit(0);
+                                    }else{
+                                        process::Command::new("wget")
+                                            .arg(data.link)
+                                            .args(&wget_args)
+                                            .exec();
+                                    }
                                 }
                             }
                         } else if data.magnets.status == "Downloading" {
-                            println!(
+                            eprintln!(
                                 "Downloading - {: >9}/{: >9} ({: >9}/s, {: >2} seeders)",
                                 humansize::format_size(data.magnets.downloaded, humansize::DECIMAL),
                                 humansize::format_size(data.magnets.size, humansize::DECIMAL),
@@ -134,7 +164,7 @@ fn main() {
                             );
                             thread::sleep(time::Duration::from_secs(1));
                         } else if data.magnets.status == "Uploading" {
-                            println!(
+                            eprintln!(
                                 "Uploading - {: >9}/{: >9} ({: >9}/s)",
                                 humansize::format_size(data.magnets.uploaded, humansize::DECIMAL),
                                 humansize::format_size(data.magnets.size, humansize::DECIMAL),
@@ -145,7 +175,7 @@ fn main() {
                             );
                             thread::sleep(time::Duration::from_secs(1));
                         } else {
-                            println!("{}", data.magnets.status)
+                            eprintln!("{}", data.magnets.status)
                         }
                     }
                 }

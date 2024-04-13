@@ -44,9 +44,9 @@ pub fn load_config() -> Config {
     let mut config: Config = confy::load("adget", None).expect("Failed to load config file");
 
     if &config.apikey == "" {
-        println!("AllDebrid apikey not found");
-        println!("Please visit https://alldebrid.com/apikeys/ and generate one.");
-        println!("paste your apikey here:");
+        eprintln!("AllDebrid apikey not found");
+        eprintln!("Please visit https://alldebrid.com/apikeys/ and generate one.");
+        eprintln!("paste your apikey here:");
 
         let mut line = String::new();
         std::io::stdin()
@@ -57,7 +57,7 @@ pub fn load_config() -> Config {
 
         let config_path =
             confy::get_configuration_file_path("adget", None).expect("Failed to load config path");
-        println!("apikey saved to {}", config_path.display());
+        eprintln!("apikey saved to {}", config_path.display());
     } else {
         let url = format!(
             "https://api.alldebrid.com/v4/user?agent=cli&apikey={}",
@@ -67,14 +67,14 @@ pub fn load_config() -> Config {
             all_debrid_get::<User>(&url).expect("Unexpected error happend while loading user info");
         match res {
             Res::Error(_) => {
-                println!("Invalid AllDebrid apikey found: deleting apikey from config...");
-                println!("Rerun the command to enter a new apikey!");
+                eprintln!("Invalid AllDebrid apikey found: deleting apikey from config...");
+                eprintln!("Rerun the command to enter a new apikey!");
                 config.apikey = "".to_string();
                 confy::store("adget", None, &config).expect("Failed to remove apikey from config");
                 process::exit(1);
             }
             Res::Data(data) => {
-                println!("Logged in as {}", data.user.username);
+                eprintln!("Logged in as {}", data.user.username);
             }
         }
     }
